@@ -15,6 +15,8 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+//mongoose.set('debug', true);
+
 // Environment variables
 const primaryDbURI = process.env.PRIMARY_DB_URI ;
 const secondaryDbURI = process.env.SECONDARY_DB_URI ;
@@ -23,7 +25,9 @@ const secondaryDbURI = process.env.SECONDARY_DB_URI ;
 const primaryConnection = mongoose.createConnection(primaryDbURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  ssl: true,
 });
+
 
 primaryConnection.on('error', (err) => {
   console.error('Primary DB connection error:', err);
@@ -37,6 +41,7 @@ primaryConnection.once('open', () => {
 const secondaryConnection = mongoose.createConnection(secondaryDbURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  ssl: true,
 });
 
 secondaryConnection.on('error', (err) => {
