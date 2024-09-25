@@ -16,8 +16,8 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Environment variables
-const primaryDbURI = process.env.PRIMARY_DB_URI || 'mongodb://localhost:27017/Ftplms';
-const secondaryDbURI = process.env.SECONDARY_DB_URI || 'mongodb://localhost:27017/Ftplms';
+const primaryDbURI = process.env.PRIMARY_DB_URI ;
+const secondaryDbURI = process.env.SECONDARY_DB_URI ;
 
 // Connect to primary database
 const primaryConnection = mongoose.createConnection(primaryDbURI, {
