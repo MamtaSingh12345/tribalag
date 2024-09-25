@@ -25,7 +25,6 @@ const secondaryDbURI = process.env.SECONDARY_DB_URI ;
 const primaryConnection = mongoose.createConnection(primaryDbURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  ssl: true,
 });
 
 
@@ -41,7 +40,6 @@ primaryConnection.once('open', () => {
 const secondaryConnection = mongoose.createConnection(secondaryDbURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  ssl: true,
 });
 
 secondaryConnection.on('error', (err) => {
@@ -57,7 +55,7 @@ const PrimaryData = primaryConnection.model('PrimaryData', new mongoose.Schema({
   farmerID: { type: String, required: true },
   farmerName: { type: String, required: true },
   dateOfBirth: { type: String, required: true },
-  contactNumber: { type: Number, required: true, unique: true },
+  contactNumber: { type: String, required: true, unique: true },
   aadharID: { type: String, required: true, unique: true },
   voterID: { type: String, required: true, unique: true },
   village: { type: String, required: true },
@@ -74,8 +72,8 @@ const SecondaryData = secondaryConnection.model('SecondaryData', new mongoose.Sc
   landDetails: {
     landInAcres: { type: Number, }, // Field for land size in acres
     landInBigha: { type: Number,  }, // Field for land size in bigha
-    waterSourceType: { type: String,  }, // Assuming this is required
-    distanceFromWaterSource: { type: Number,  }, // Assuming this is required
+    waterSourceType: { type: String,  }, 
+    distanceFromWaterSource: { type: Number,  }, 
   },
   documents: {
     farmerPhoto: { type: String }, // Field for the farmer's photo
@@ -111,10 +109,10 @@ app.post('/register/secondary', upload.fields([
   try {
     const farmerID = req.body.farmerID;
 
-    const landInAcres = req.body['landDetails.landInAcres'];
-    const landInBigha = req.body['landDetails.landInBigha'];
-    const waterSourceType = req.body['landDetails.waterSourceType'];
-    const distanceFromWaterSource = req.body['landDetails.distanceFromWaterSource'];
+    const landInAcres = parseFloat(req.body.landInAcres) || null;
+    const landInBigha = parseFloat(req.body.landInBigha) || null;
+    const waterSourceType = req.body['landDetails.waterSourceType'] ;
+    const distanceFromWaterSource = req.body['landDetails.distanceFromWaterSource'] || null;
 
     const farmerPhoto = req.files['farmerPhoto'] ? req.files['farmerPhoto'][0].path : null;
     const aadharScan = req.files['aadharScan'] ? req.files['aadharScan'][0].path : null;
@@ -140,6 +138,9 @@ app.post('/register/secondary', upload.fields([
     res.status(200).json({ success: true });
   } catch (error) {
     console.error('Error handling secondary registration:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ success: false, error: 'Duplicate field detected. Ensure unique values for contactNumber, aadharID, or voterID.' });
+    }
     res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 });
