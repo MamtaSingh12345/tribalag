@@ -62,9 +62,9 @@ const PrimaryData = primaryConnection.model('PrimaryData', new mongoose.Schema({
   gramPanchayat: { type: String, required: true },
   block: { type: String, required: true },
   district: { type: String, required: true },
-  state: { type: String, required: false },
-  country: { type: String, required: false },
-  pin: { type: Number, required: false },
+  state: { type: String, required: true },
+  country: { type: String, required: true },
+  pin: { type: Number, required: true },
 }));
 
 const SecondaryData = secondaryConnection.model('SecondaryData', new mongoose.Schema({

@@ -111,6 +111,7 @@ const FarmerDetailsForm = ({
           className={`form-control ${errors.contactNumber ? 'is-invalid' : ''}`}
           id="contactNumber"
           name="contactNumber"
+          placeholder='+91XXXXXXXXXX'
           value={formData.contactNumber}
           onChange={handlePrimaryChange}
         />
@@ -137,7 +138,7 @@ const FarmerDetailsForm = ({
           </button>
         </div>
       </div>
-
+      {errors.otp && (<div className="alert alert-danger mt-2">{errors.otp}</div>)}
       
       <div className="mb-3">
         <label htmlFor="aadharID" className="form-label">Aadhar ID</label>
@@ -174,12 +175,14 @@ const FarmerDetailsForm = ({
       </Button>
       
       <Button
+        type="button"
         className="btn btn-primary ms-2" // Add margin to separate the buttons
-        onClick={handleNext} // Replace with actual next step handler
-        disabled={!otpVerified}
+        onClick={handleNext} // Replace with actual next step handler 
+        disabled={!otpVerified}      
       >
         Next
       </Button>
+      {errors.otp && <div className="invalid-feedback">{errors.otp}</div>}
 
       {/* Modal for OTP Verification */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
@@ -206,7 +209,6 @@ const FarmerDetailsForm = ({
             onClick={async () => {
               try {
                 await handleVerifyOTP(); // Ensure handleVerifyOTP is an async function
-                setOtpVerified(true); // Set OTP as verified if the API call is successful
                 setShowModal(false); // Close the modal
               } catch (error) {
                 console.error("Error verifying OTP:", error);

@@ -83,7 +83,7 @@ const RegisterFarmer = () => {
       if (!primaryData.voterID) {
           newErrors.voterID = 'Voter ID is required';
       } 
-    
+
       // Update errors state in one go
       setErrors(newErrors);
     
@@ -96,8 +96,18 @@ const RegisterFarmer = () => {
     const newErrors = {};
 
     if (!primaryData.village) newErrors.village = 'Village is required';
+    if (!primaryData.gramPanchayat) newErrors.gramPanchayat = 'Gram Panchayat is required';
+    if (!primaryData.block) newErrors.block = 'Block is required';
     if (!primaryData.district) newErrors.district = 'District is required';
-    if (!primaryData.pin || primaryData.pin.length !== 6) newErrors.pin = 'Valid 6-digit PIN is required';
+    if (!primaryData.state) newErrors.state = 'State is required';
+    if (!primaryData.country) newErrors.country = 'Country is required';
+    
+    if (!primaryData.pin) {
+      newErrors.pin = 'PIN is required';
+    } else if (primaryData.pin.toString().length !== 6) {
+      newErrors.pin = 'Valid 6-digit PIN is required';
+    }
+  
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -173,11 +183,11 @@ const RegisterFarmer = () => {
   //function for verify otp
   const handleVerifyOTP = async () => {
     if (!primaryData.contactNumber) {
-      alert('Please enter your contact number.');
+      setErrors((prevErrors) => ({ ...prevErrors, otp: 'Please enter your contact number.' }));
       return;
     }
     if (!otp) {
-      alert('Please enter the OTP.');
+      setErrors((prevErrors) => ({ ...prevErrors, otp: 'Please enter the OTP.' }));
       return;
     }
   
@@ -188,22 +198,28 @@ const RegisterFarmer = () => {
       });
   
       if (response.data.success) {
-        setOtpVerified(true);
+        setErrors((prevErrors) => ({ ...prevErrors, otp: null })); // Clear OTP error on success
         alert('OTP verified successfully');
+        setOtpVerified(true); // Set OTP verification state to true on success
       } else {
-        alert('Invalid OTP: ' + response.data.message);
+        setErrors((prevErrors) => ({ ...prevErrors, otp: 'Invalid OTP: ' + response.data.message }));
+        setOtpVerified(false); // Ensure OTP verification state is false on failure
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
+      setOtpVerified(false); // Ensure OTP verification state is false on error
   
       if (error.response) {
-        alert('Error: ' + (error.response.data.message || 'Error verifying OTP'));
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          otp: 'Error: ' + (error.response.data.message || 'Error verifying OTP'),
+        }));
       } else {
-        alert('Error verifying OTP. Please try again.');
+        setErrors((prevErrors) => ({ ...prevErrors, otp: 'Error verifying OTP. Please try again.' }));
       }
     }
   };
-  
+      
   //handle the next button
   const handleNext = async () => {
     let isValid = false;
