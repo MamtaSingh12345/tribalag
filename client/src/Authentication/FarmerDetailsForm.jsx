@@ -11,15 +11,16 @@ const FarmerDetailsForm = ({
   otp,
   setOtp,
   otpVerified,
-  setOtpVerified, // If handled in the parent component, ensure it's passed
-  errors = {},    // Add errors prop for validation messages
-
+  setOtpVerified, // Passed from parent
+  isDuplicate,      // Passed from parent to handle duplicate state
+  errors = {},      // Errors object for validation messages
+  setIsDuplicate, 
 }) => {
   const [showModal, setShowModal] = useState(false); // Modal control state
-  const [resendCooldown, setResendCooldown] = useState(30); // Cooldown time for Resend OTP
-  const [resendDisabled, setResendDisabled] = useState(true); // Resend button disabled state
+  const [resendCooldown, setResendCooldown] = useState(30); // Cooldown for resend OTP
+  const [resendDisabled, setResendDisabled] = useState(true); // Resend button state
 
-  // Start the countdown for resend OTP when OTP is sent
+  // Start countdown for Resend OTP
   useEffect(() => {
     if (otpSent) {
       const interval = setInterval(() => {
@@ -33,51 +34,39 @@ const FarmerDetailsForm = ({
         });
       }, 1000); // Reduce countdown by 1 every second
 
-      return () => clearInterval(interval); // Cleanup the interval on component unmount
+      return () => clearInterval(interval); // Cleanup the interval on unmount
     }
   }, [otpSent]);
 
-  //handle the resend otp button
+  // Handle resend OTP logic
   const handleResendOTP = async () => {
     try {
-      // Send a new OTP
-      await handleSendOTP(); // This should only send the OTP
-  
-      // Clear the OTP input field
-      setOtp(''); 
-  
-      // Mark OTP as unverified
-      setOtpVerified(false); 
-  
-      // Disable Resend OTP until cooldown ends
-      setResendDisabled(true); 
-      
-      // Reset cooldown to 30 seconds
-      setResendCooldown(30); 
-  
-      // Start cooldown timer
+      await handleSendOTP(); // Send a new OTP
+      setOtp(''); // Clear OTP input field
+      setOtpVerified(false); // Reset OTP verification state
+      setResendDisabled(true); // Disable Resend OTP
+      setResendCooldown(30); // Reset cooldown
+
       const interval = setInterval(() => {
-        setResendCooldown(prev => {
+        setResendCooldown((prev) => {
           if (prev <= 1) {
             clearInterval(interval);
-            setResendDisabled(false); // Re-enable button when cooldown is over
-            return 0; // Reset cooldown
+            setResendDisabled(false);
+            return 0;
           }
-          return prev - 1; // Decrease cooldown
+          return prev - 1;
         });
-      }, 1000); // Update every second
+      }, 1000);
     } catch (error) {
       console.error('Error resending OTP:', error);
     }
   };
-  
-  
-
 
   return (
     <div>
       <h4 className="mb-3">Farmer Details</h4>
-      
+
+      {/* Farmer Name */}
       <div className="mb-3">
         <label htmlFor="farmerName" className="form-label">Farmer Name</label>
         <input
@@ -90,7 +79,8 @@ const FarmerDetailsForm = ({
         />
         {errors.farmerName && <div className="invalid-feedback">{errors.farmerName}</div>}
       </div>
-      
+
+      {/* Date of Birth */}
       <div className="mb-3">
         <label htmlFor="dateOfBirth" className="form-label">Date of Birth</label>
         <input
@@ -103,7 +93,8 @@ const FarmerDetailsForm = ({
         />
         {errors.dateOfBirth && <div className="invalid-feedback">{errors.dateOfBirth}</div>}
       </div>
-      
+
+      {/* Contact Number */}
       <div className="mb-3">
         <label htmlFor="contactNumber" className="form-label">Contact Number</label>
         <input
@@ -117,8 +108,8 @@ const FarmerDetailsForm = ({
         />
         {errors.contactNumber && <div className="invalid-feedback">{errors.contactNumber}</div>}
         
-         {/* Container for both Send OTP and Resend OTP buttons */}
-         <div className="d-flex mt-2">
+        {/* Container for Send OTP and Resend OTP */}
+        <div className="d-flex mt-2">
           <button
             className="btn btn-secondary"
             onClick={handleSendOTP}
@@ -127,10 +118,10 @@ const FarmerDetailsForm = ({
             {otpSent ? 'OTP Sent' : 'Send OTP'}
           </button>
 
-          {/* Resend OTP button beside Send OTP */}
+          {/* Resend OTP Button */}
           <button
             type="button"
-            className="btn btn-warning ms-2" // "ms-2" adds margin between buttons
+            className="btn btn-warning ms-2"
             onClick={handleResendOTP}
             disabled={resendDisabled}
           >
@@ -138,8 +129,9 @@ const FarmerDetailsForm = ({
           </button>
         </div>
       </div>
-      {errors.otp && (<div className="alert alert-danger mt-2">{errors.otp}</div>)}
-      
+      {errors.otp && <div className="alert alert-danger mt-2">{errors.otp}</div>}
+
+      {/* Aadhar ID */}
       <div className="mb-3">
         <label htmlFor="aadharID" className="form-label">Aadhar ID</label>
         <input
@@ -152,7 +144,8 @@ const FarmerDetailsForm = ({
         />
         {errors.aadharID && <div className="invalid-feedback">{errors.aadharID}</div>}
       </div>
-      
+
+      {/* Voter ID */}
       <div className="mb-3">
         <label htmlFor="voterID" className="form-label">Voter ID</label>
         <input
@@ -165,7 +158,8 @@ const FarmerDetailsForm = ({
         />
         {errors.voterID && <div className="invalid-feedback">{errors.voterID}</div>}
       </div>
-      
+
+      {/* Verify Button */}
       <Button
         className="btn btn-primary"
         onClick={() => setShowModal(true)} // Show the modal when clicking "Verify"
@@ -173,18 +167,27 @@ const FarmerDetailsForm = ({
       >
         Verify
       </Button>
-      
+
+      {/* Next Button */}
       <Button
         type="button"
-        className="btn btn-primary ms-2" // Add margin to separate the buttons
-        onClick={handleNext} // Replace with actual next step handler 
-        disabled={!otpVerified}      
+        className="btn btn-primary ms-2"
+        onClick={handleNext} 
+        disabled={!otpVerified || isDuplicate}  // Disable if OTP not verified or duplicates exist
       >
         Next
       </Button>
-      {errors.otp && <div className="invalid-feedback">{errors.otp}</div>}
 
-      {/* Modal for OTP Verification */}
+      {/* Error Message Display */}
+      {isDuplicate && (
+        <div className="alert alert-danger mt-3">
+          One or more fields contain duplicate data. Please fix the errors above.
+        </div>
+      )}
+
+      {errors.form && <div className="alert alert-danger">{errors.form}</div>}
+
+      {/* OTP Verification Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)}>
         <Modal.Header closeButton>
           <Modal.Title>Verify OTP</Modal.Title>
@@ -208,11 +211,11 @@ const FarmerDetailsForm = ({
             variant="primary"
             onClick={async () => {
               try {
-                await handleVerifyOTP(); // Ensure handleVerifyOTP is an async function
-                setShowModal(false); // Close the modal
+                await handleVerifyOTP(); // Ensure handleVerifyOTP is async
+                setShowModal(false); // Close modal after success
               } catch (error) {
                 console.error("Error verifying OTP:", error);
-                setOtpVerified(false); // Ensure the button remains disabled on failure
+                setOtpVerified(false); // Keep OTP verification state false
               }
             }}
           >

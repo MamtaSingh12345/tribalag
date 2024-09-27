@@ -241,8 +241,15 @@ const RegisterFarmer = () => {
               // Check if any of the fields are duplicates
               if (contactNumberExists || aadharIDExists || voterIDExists) {
                 setIsDuplicate(true);
-                setError('Duplicate data found. Please check your entries.');
+                
+                setErrors({
+                  contactNumber: contactNumberExists ? 'This contact number is already registered.' : '',
+                  aadharID: aadharIDExists ? 'This Aadhar ID is already registered.' : '',
+                  voterID: voterIDExists ? 'This Voter ID is already registered.' : ''
+                });
+
                 isValid = false; // Prevent moving to the next step
+                
               } else {
                 setIsDuplicate(false);
                 setError(null); // Clear error if no duplicates are found
@@ -364,6 +371,8 @@ const RegisterFarmer = () => {
                           setOtp={setOtp}
                           otpVerified={otpVerified}
                           setOtpVerified={setOtpVerified} // Pass the state updater
+                          isDuplicate={isDuplicate}
+                          setIsDuplicate={setIsDuplicate} 
                           errors={errors}
 
                         />

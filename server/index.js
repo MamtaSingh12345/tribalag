@@ -6,8 +6,8 @@ const path = require('path');
 const multer = require('multer');
 const dotenv = require('dotenv');
 const registerRoutes = require('./routes/registerRoutes'); // Ensure this path is correct
-//const ExistenceCheck = require('./Models/existenceCheck'); // Import the ExistenceCheck model
-
+const { Client } = require('basic-ftp'); // Import basic-ftp
+const { Readable } = require('stream');
 
 dotenv.config();
 
@@ -15,18 +15,18 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-//mongoose.set('debug', true);
-
 // Environment variables
-const primaryDbURI = process.env.PRIMARY_DB_URI ;
-const secondaryDbURI = process.env.SECONDARY_DB_URI ;
+const primaryDbURI = process.env.PRIMARY_DB_URI;
+const secondaryDbURI = process.env.SECONDARY_DB_URI;
+const ftpHost = process.env.FTP_HOST;
+const ftpUser = process.env.FTP_USER;
+const ftpPassword = process.env.FTP_PASSWORD;
 
 // Connect to primary database
 const primaryConnection = mongoose.createConnection(primaryDbURI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });
-
 
 primaryConnection.on('error', (err) => {
   console.error('Primary DB connection error:', err);
@@ -71,9 +71,9 @@ const SecondaryData = secondaryConnection.model('SecondaryData', new mongoose.Sc
   farmerID: { type: String, required: true }, // Assuming farmerID is required
   landDetails: {
     landInAcres: { type: Number, }, // Field for land size in acres
-    landInBigha: { type: Number,  }, // Field for land size in bigha
-    waterSourceType: { type: String,  }, 
-    distanceFromWaterSource: { type: Number,  }, 
+    landInBigha: { type: Number, }, // Field for land size in bigha
+    waterSourceType: { type: String, },
+    distanceFromWaterSource: { type: Number, },
   },
   documents: {
     farmerPhoto: { type: String }, // Field for the farmer's photo
@@ -85,20 +85,41 @@ const SecondaryData = secondaryConnection.model('SecondaryData', new mongoose.Sc
 // Import the OTP model
 const OTP = primaryConnection.model('OTP', require('./Models/otp').schema);
 
-// Set up Multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Directory where files will be stored
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${file.fieldname}-${Date.now()}${path.extname(file.originalname)}`);
-  }
-});
+// Set up storage options for file uploads
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// FTP Upload Function
+async function uploadFileToFTP(fileBuffer, remoteFileName) {
+  const client = new Client();
+  try {
+    await client.access({
+      host: ftpHost,
+      user: ftpUser,
+      password: ftpPassword,
+    });
+
+    console.log('FTP access successful');
+
+    // Convert the file buffer to a readable stream
+    const stream = new Readable();
+    stream.push(fileBuffer);
+    stream.push(null); // Signal the end of the stream
+
+    // Upload file to the specified path
+    await client.uploadFrom(stream, `/htdocs/uploads/${remoteFileName}`);
+
+    console.log('File uploaded successfully to FTP:', remoteFileName);
+  } catch (error) {
+    console.error('Error uploading file to FTP:', error);
+    throw error;
+  } finally {
+    client.close();
+  }
+}
+
+// ExistenceCheck model (assuming it is required for some other logic)
 const ExistenceCheck = primaryConnection.model('ExistenceCheck', require('./Models/existenceCheck').schema);
-
-
 
 // POST route for secondary registration with file uploads
 app.post('/register/secondary', upload.fields([
@@ -111,13 +132,46 @@ app.post('/register/secondary', upload.fields([
 
     const landInAcres = parseFloat(req.body.landInAcres) || null;
     const landInBigha = parseFloat(req.body.landInBigha) || null;
-    const waterSourceType = req.body['landDetails.waterSourceType'] ;
-    const distanceFromWaterSource = req.body['landDetails.distanceFromWaterSource'] || null;
+    const waterSourceType = req.body['landDetails.waterSourceType'];
+    const distanceFromWaterSource = parseFloat(req.body['landDetails.distanceFromWaterSource']) || null;
 
-    const farmerPhoto = req.files['farmerPhoto'] ? req.files['farmerPhoto'][0].path : null;
-    const aadharScan = req.files['aadharScan'] ? req.files['aadharScan'][0].path : null;
-    const voterScan = req.files['voterScan'] ? req.files['voterScan'][0].path : null;
+    // Handle file uploads via FTP
+    let farmerPhoto = null;
+    let aadharScan = null;
+    let voterScan = null;
 
+    // Farmer Photo FTP Upload
+    if (req.files['farmerPhoto']) {
+      const file = req.files['farmerPhoto'][0];
+      farmerPhoto = `farmerPhoto-${Date.now()}${path.extname(file.originalname)}`;
+      
+      // Log to check if file buffer exists
+      console.log('Uploading farmerPhoto to FTP:', file.buffer);
+      
+      await uploadFileToFTP(file.buffer, farmerPhoto);  // Call FTP upload
+    }
+
+    // Aadhar Scan FTP Upload
+    if (req.files['aadharScan']) {
+      const file = req.files['aadharScan'][0];
+      aadharScan = `aadharScan-${Date.now()}${path.extname(file.originalname)}`;
+
+      console.log('Uploading aadharScan to FTP:', file.buffer);
+      
+      await uploadFileToFTP(file.buffer, aadharScan);  // Call FTP upload
+    }
+
+    // Voter Scan FTP Upload
+    if (req.files['voterScan']) {
+      const file = req.files['voterScan'][0];
+      voterScan = `voterScan-${Date.now()}${path.extname(file.originalname)}`;
+
+      console.log('Uploading voterScan to FTP:', file.buffer);
+
+      await uploadFileToFTP(file.buffer, voterScan);  // Call FTP upload
+    }
+
+    // Now that the files have been uploaded to the FTP server, save the document URLs in MongoDB
     const secondaryData = new SecondaryData({
       farmerID,
       landDetails: {
@@ -127,7 +181,7 @@ app.post('/register/secondary', upload.fields([
         distanceFromWaterSource,
       },
       documents: {
-        farmerPhoto,
+        farmerPhoto,  // Save the file name that was uploaded to FTP
         aadharScan,
         voterScan,
       },
@@ -145,12 +199,8 @@ app.post('/register/secondary', upload.fields([
   }
 });
 
-
 // Use the existing register routes for primary registration and OTP sending
 app.use('/register', registerRoutes(upload, PrimaryData, SecondaryData, OTP, ExistenceCheck));
-
-// Serve static files from the "uploads" directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Start the server
 const PORT = process.env.PORT || 4000;

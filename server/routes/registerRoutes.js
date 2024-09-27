@@ -199,25 +199,41 @@ router.post('/check-existence', async (req, res) => {
     { name: 'voterScan', maxCount: 1 },
   ]), async (req, res) => {
     try {
+      // Check if the necessary files are present
       if (!req.files || !req.files.farmerPhoto || !req.files.aadharScan || !req.files.voterScan) {
         throw new Error('Missing files in the request');
       }
-
+  
+      // Extract the farmer ID and land details
+      const farmerID = req.body.farmerID;
+      const landDetails = {
+        landInAcres: parseFloat(req.body.landDetails.landInAcres) || null,
+        landInBigha: parseFloat(req.body.landDetails.landInBigha) || null,
+        waterSourceType: req.body.landDetails.waterSourceType,
+        distanceFromWaterSource: parseFloat(req.body.landDetails.distanceFromWaterSource) || null,
+      };
+  
+      // Handle file uploads via FTP
+      const farmerPhoto = `farmerPhoto-${Date.now()}${path.extname(req.files.farmerPhoto[0].originalname)}`;
+      await uploadFileToFTP(req.files.farmerPhoto[0].buffer, farmerPhoto); // Upload to FTP
+  
+      const aadharScan = `aadharScan-${Date.now()}${path.extname(req.files.aadharScan[0].originalname)}`;
+      await uploadFileToFTP(req.files.aadharScan[0].buffer, aadharScan); // Upload to FTP
+  
+      const voterScan = `voterScan-${Date.now()}${path.extname(req.files.voterScan[0].originalname)}`;
+      await uploadFileToFTP(req.files.voterScan[0].buffer, voterScan); // Upload to FTP
+  
+      // Now that the files have been uploaded to the FTP server, save the document URLs in MongoDB
       const secondaryData = new SecondaryData({
-        farmerID: req.body.farmerID,
-        landDetails: {
-          landInAcres: req.body.landDetails.landInAcres,  
-          landInBigha: req.body.landDetails.landInBigha, 
-          waterSourceType: req.body.landDetails.waterSourceType,
-          distanceFromWaterSource: req.body.landDetails.distanceFromWaterSource,
-        },
+        farmerID,
+        landDetails,
         documents: {
-          farmerPhoto: req.files.farmerPhoto[0].path,
-          aadharScan: req.files.aadharScan[0].path,
-          voterScan: req.files.voterScan[0].path,
-        }
+          farmerPhoto,  // Save the file name that was uploaded to FTP
+          aadharScan,
+          voterScan,
+        },
       });
-
+  
       await secondaryData.save();
       res.status(200).json({ success: true });
     } catch (error) {
@@ -225,7 +241,7 @@ router.post('/check-existence', async (req, res) => {
       res.status(500).json({ success: false, error: error.message });
     }
   });
-
+  
   //login routes
   router.post('/login', async (req, res) => {
     try {
